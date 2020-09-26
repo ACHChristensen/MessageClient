@@ -67,7 +67,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <mainClass>
-                                messageclient.Client
+                                messageclient.api.Client
                             </mainClass>
                         </manifest>
                     </archive>
