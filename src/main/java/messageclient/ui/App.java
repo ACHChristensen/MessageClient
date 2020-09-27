@@ -100,8 +100,7 @@ public class App extends JFrame implements ClientListObserver {
     }
 
     private void refreshClients() {
-        mclient.refreshClients();
-        
+        mclient.restartClients();
     }
 
     private JList<String> createClientList(ListModel<String> model) {

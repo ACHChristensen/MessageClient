@@ -4,14 +4,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class MClient implements AutoCloseable {
+public class MClient implements AutoCloseable, MessageObserver {
 
     @NotNull private final List<Client> clients;
     @NotNull private final InetSocketAddress address;
@@ -32,6 +31,7 @@ public class MClient implements AutoCloseable {
 
     public Client newClient(InetSocketAddress currentAddress) throws IOException {
         Client client = Client.open(noOfClients.incrementAndGet(), currentAddress);
+        client.register(this);
         addClient(client);
         return client;
     }
@@ -40,8 +40,7 @@ public class MClient implements AutoCloseable {
         synchronized (this) {
             clients.add(client);
         }
-        for (var observer : observers)
-            observer.clientListChanged();
+        clientListChanged();
     }
 
     public void register(ClientListObserver observer) {
@@ -68,7 +67,7 @@ public class MClient implements AutoCloseable {
         return List.copyOf(clients);
     }
 
-    public synchronized void refreshClients() {
+    public synchronized void restartClients() {
         ArrayList<Client> newclients = new ArrayList<>();
         for (Client c: clients) {
             try {
@@ -79,5 +78,24 @@ public class MClient implements AutoCloseable {
         }
         clients.clear();
         clients.addAll(newclients);
+        clientListChanged();
+    }
+
+    @Override
+    public void receivedMessage(String message) {
+    }
+
+    @Override
+    public void connectionStarted(Client client) {
+        clientListChanged();
+    }
+
+    private void clientListChanged() {
+        observers.forEach(ClientListObserver::clientListChanged);
+    }
+
+    @Override
+    public void connectionClosed() {
+        clientListChanged();
     }
 }

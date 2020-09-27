@@ -6,13 +6,13 @@ import messageclient.api.MessageObserver;
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
 
 public class ClientWindow extends JFrame implements MessageObserver {
     private static final Font FONT = new Font(Font.MONOSPACED, Font.PLAIN, 16);
-    private final Client client;
+    private volatile Client client;
     private final JTextArea textArea;
 
     public ClientWindow(Client client) {
@@ -23,10 +23,22 @@ public class ClientWindow extends JFrame implements MessageObserver {
         add(createScrollableTextArea(textArea), BorderLayout.CENTER);
         add(createTextField(), BorderLayout.SOUTH);
 
-        setSize(800, 800);
+        setSize(600, 800);
         setVisible(true);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
+
+        var superThis = this;
+        addWindowListener(new WindowAdapter () {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                super.windowClosing(e);
+                try {
+                    superThis.client.close();
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
+            }
+        });
     }
 
     public static ClientWindow fromClient(Client client) {
@@ -77,8 +89,10 @@ public class ClientWindow extends JFrame implements MessageObserver {
     }
 
     @Override
-    public void connectionStarted(InetSocketAddress address) {
-        append("-- Connected to " + address + "\n");
+    public void connectionStarted(Client client) {
+        if (!isVisible()) setVisible(true);
+        this.client = client;
+        append("-- Connected to " + client.getAddress() + "\n");
     }
 
     @Override

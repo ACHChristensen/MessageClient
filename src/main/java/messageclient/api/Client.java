@@ -31,7 +31,7 @@ public class Client implements AutoCloseable, Runnable {
 
     public void connect() throws IOException {
         this.socket.connect(this.address);
-        observers.forEach(ob -> ob.connectionStarted(address));
+        observers.forEach(ob -> ob.connectionStarted(this));
         this.thread.start();
     }
 
