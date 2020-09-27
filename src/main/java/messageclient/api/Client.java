@@ -1,12 +1,7 @@
 package messageclient.api;
 
-import messageclient.Utils;
-import messageclient.ui.ServerPrompt;
-
-import javax.swing.*;
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
@@ -16,76 +11,92 @@ import java.util.*;
 /**
  * The Message Client
  */
-public class Client implements AutoCloseable {
+public class Client implements AutoCloseable, Runnable {
+    private final int id;
     private final SocketChannel socket;
     private final Set<MessageObserver> observers = new HashSet<>();
+    private final InetSocketAddress address;
+    private final Thread thread;
 
-    private Client(SocketChannel socket) {
+    private Client(int id, InetSocketAddress address, SocketChannel socket) {
+        this.id = id;
+        this.address = address;
         this.socket = socket;
+        this.thread = new Thread(this);
     }
 
-    public static Client open(SocketAddress address) throws IOException {
-        return new Client(SocketChannel.open(address));
+    public static Client open(int id, InetSocketAddress address) throws IOException {
+        return new Client(id, address, SocketChannel.open());
+    }
+
+    public void connect() throws IOException {
+        this.socket.connect(this.address);
+        observers.forEach(ob -> ob.connectionStarted(address));
+        this.thread.start();
     }
 
     public void sendMessage(String message) throws IOException {
         CharBuffer buffer = CharBuffer.wrap(message.toCharArray());
-        socket.write(StandardCharsets.UTF_8.encode(buffer));
+        int x = socket.write(StandardCharsets.UTF_8.encode(buffer));
     }
 
     private String readMessage() throws IOException{
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        socket.read(buffer);
+        ByteBuffer buffer = ByteBuffer.allocate(4096);
+        int x = socket.read(buffer);
         buffer.flip();
-        return StandardCharsets.UTF_8.decode(buffer).toString();
+        String msg = StandardCharsets.UTF_8.decode(buffer).toString();
+        return msg;
     }
 
+    @Override
     public void run() {
-        // JOptionPane.showMessageDialog(null, "Connection To Server Lost");
         try {
             while (true) {
                 String message = readMessage();
-                for (MessageObserver o : observers) {
-                    o.receivedMessage(message);
-                }
+                observers.forEach(ob -> ob.receivedMessage(message));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static InetSocketAddress interactivelyGetAddress() throws InterruptedException {
-        return new ServerPrompt("localhost", 2222)
-                .waitForAddress();
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        InetSocketAddress address = args.length == 2
-                ? Utils.parseInetAddress(args[0], args[1])
-                : interactivelyGetAddress();
-
-        try (Client client = Client.open(address)) {
-            System.out.println(client.socket);
-            client.sendMessage("hello");
-            client.register(System.out::println);
-            client.run();
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, e.getMessage());
-            System.exit(-1);
-        }
+        } catch (IOException e) { }
     }
 
     @Override
     public void close() throws IOException {
         socket.close();
+        thread.interrupt();
+        observers.forEach(MessageObserver::connectionClosed);
     }
 
-    public void register(MessageObserver observer) {
+    public synchronized void register(MessageObserver observer) {
         observers.add(observer);
     }
 
-    public void deregister(MessageObserver observer) {
+    public synchronized void deregister(MessageObserver observer) {
         observers.remove(observer);
     }
 
+    public InetSocketAddress getAddress() {
+        return address;
+    }
+
+    public boolean isOpen() {
+        return socket.isOpen();
+    }
+
+    public Client reconnect() throws IOException {
+        Client client = Client.open(this.id, this.address);
+        synchronized (this) {
+        client.observers.addAll(this.observers);
+        }
+        this.close();
+        client.connect();
+        return client;
+    }
+
+    @Override
+    public String toString() {
+        return "Client{" +
+                "id=" + id +
+                ", address=" + address +
+                ", open=" + isOpen() +
+                '}';
+    }
 }
