@@ -7,8 +7,6 @@ import messageclient.api.MClient;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.swing.plaf.IconUIResource;
-import javax.swing.plaf.basic.BasicBorders;
 import java.awt.*;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -137,11 +135,9 @@ public class App extends JFrame implements ClientListObserver {
 
     @Override
     public void clientListChanged() {
-        System.out.println("Client List Changed");
         model.clear();
         for (Client c : mclient.findClients()) {
             String name = c.toString();
-            System.out.println(name);
             model.addElement(name);
         }
         this.pack();
