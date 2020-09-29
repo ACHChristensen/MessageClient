@@ -142,6 +142,7 @@ public class App extends JFrame implements ClientListObserver {
             String name = c.toString();
             model.addElement(name);
         }
+
         this.pack();
         this.repaint();
     }
