@@ -127,10 +127,12 @@ public class App extends JFrame implements ClientListObserver {
                 ? Utils.parseInetAddress(args[0], args[1])
                 : new InetSocketAddress("165.232.73.234", 6666);
         var mclient = new MClient(address);
+
         SwingUtilities.invokeLater(() -> {
             App app = new App(mclient);
             mclient.register(app);
         });
+
     }
 
     @Override
