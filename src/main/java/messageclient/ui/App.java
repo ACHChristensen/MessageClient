@@ -137,7 +137,7 @@ public class App extends JFrame implements ClientListObserver {
 
     @Override
     public void clientListChanged() {
-        System.out.println("Client List Changed");
+        System.out.println("Client List Changed!");
         model.clear();
         for (Client c : mclient.findClients()) {
             String name = c.toString();
