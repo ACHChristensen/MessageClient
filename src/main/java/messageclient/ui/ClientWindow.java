@@ -9,6 +9,9 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.channels.SocketChannel;
+import java.util.Scanner;
 
 public class ClientWindow extends JFrame implements MessageObserver {
     private static final Font FONT = new Font(Font.MONOSPACED, Font.PLAIN, 16);
@@ -48,7 +51,7 @@ public class ClientWindow extends JFrame implements MessageObserver {
     }
 
 
-    public void append(String string)  {
+    public synchronized void append(String string)  {
         textArea.append(string);
     }
 
@@ -84,19 +87,32 @@ public class ClientWindow extends JFrame implements MessageObserver {
     }
 
     @Override
-    public void receivedMessage(String message) {
-        append(message);
+    public synchronized void receivedMessage(String message) {
+        if (message.startsWith("!")) {
+            Scanner s = new Scanner(new StringReader(message.substring(1)));
+            switch (s.next()) {
+                case "clear":
+                    clearText();
+
+            }
+        } else {
+            append(message);
+        }
+    }
+
+    private void clearText() {
+        textArea.setText("");
     }
 
     @Override
-    public void connectionStarted(Client client) {
+    public synchronized void connectionStarted(Client client) {
         if (!isVisible()) setVisible(true);
         this.client = client;
         append("-- Connected to " + client.getAddress() + "\n");
     }
 
     @Override
-    public void connectionClosed() {
+    public synchronized void connectionClosed() {
         append("-- Connection closed.\n");
     }
 }

@@ -68,16 +68,16 @@ public class MClient implements AutoCloseable, MessageObserver {
     }
 
     public synchronized void restartClients() {
-        ArrayList<Client> newclients = new ArrayList<>();
+        ArrayList<Client> newClients = new ArrayList<>();
         for (Client c: clients) {
             try {
-                newclients.add(c.reconnect());
+                newClients.add(c.reconnect());
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
         clients.clear();
-        clients.addAll(newclients);
+        clients.addAll(newClients);
         clientListChanged();
     }
 

@@ -2,8 +2,10 @@ package messageclient.api;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -17,6 +19,7 @@ public class Client implements AutoCloseable, Runnable {
     private final Set<MessageObserver> observers = new HashSet<>();
     private final InetSocketAddress address;
     private final Thread thread;
+    private BufferedReader reader;
 
     private Client(int id, InetSocketAddress address, SocketChannel socket) {
         this.id = id;
@@ -31,6 +34,7 @@ public class Client implements AutoCloseable, Runnable {
 
     public void connect() throws IOException {
         this.socket.connect(this.address);
+        this.reader = new BufferedReader(Channels.newReader(socket, StandardCharsets.UTF_8));
         observers.forEach(ob -> ob.connectionStarted(this));
         this.thread.start();
     }
@@ -41,11 +45,11 @@ public class Client implements AutoCloseable, Runnable {
     }
 
     private String readMessage() throws IOException{
-        ByteBuffer buffer = ByteBuffer.allocate(4096);
-        int x = socket.read(buffer);
-        buffer.flip();
-        String msg = StandardCharsets.UTF_8.decode(buffer).toString();
-        return msg;
+        // ByteBuffer buffer = ByteBuffer.allocate(4096);
+        // int x = socket.read(buffer);
+        // buffer.flip();
+        // String msg = StandardCharsets.UTF_8.decode(buffer).toString();
+        return reader.readLine() + "\n";
     }
 
     @Override
