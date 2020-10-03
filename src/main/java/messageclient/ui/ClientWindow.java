@@ -10,13 +10,15 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.channels.SocketChannel;
 import java.util.Scanner;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-public class ClientWindow extends JFrame implements MessageObserver {
+public class ClientWindow extends JFrame implements MessageObserver, Runnable {
     private static final Font FONT = new Font(Font.MONOSPACED, Font.PLAIN, 16);
     private volatile Client client;
     private final JTextArea textArea;
+    private final BlockingQueue<String> messages = new LinkedBlockingQueue<>();
 
     public ClientWindow(Client client) {
         super("MessageClient");
@@ -51,10 +53,6 @@ public class ClientWindow extends JFrame implements MessageObserver {
     }
 
 
-    public synchronized void append(String string)  {
-        textArea.append(string);
-    }
-
     private JTextField createTextField() {
         JTextField textField = new JTextField();
         textField.setFont(FONT);
@@ -86,33 +84,50 @@ public class ClientWindow extends JFrame implements MessageObserver {
         return scroll;
     }
 
-    @Override
-    public synchronized void receivedMessage(String message) {
+    private void handleMessage(String message) {
+        // Should be run from the event dispatch thread to not have races.
+        assert SwingUtilities.isEventDispatchThread();
         if (message.startsWith("!")) {
             Scanner s = new Scanner(new StringReader(message.substring(1)));
             switch (s.next()) {
                 case "clear":
-                    clearText();
-
+                    textArea.setText("");
+                    break;
             }
         } else {
-            append(message);
+            textArea.append(message);
         }
     }
 
-    private void clearText() {
-        textArea.setText("");
+    public void run() {
+        synchronized (messages) {
+            String message;
+            while ((message = messages.poll()) != null)
+                handleMessage(message);
+        }
     }
 
     @Override
-    public synchronized void connectionStarted(Client client) {
-        if (!isVisible()) setVisible(true);
+    public void receivedMessage(String message) {
+        messages.add(message);
+        SwingUtilities.invokeLater(this);
+    }
+
+    private void clientMessage(String message) {
+        messages.add("-- " + message);
+        SwingUtilities.invokeLater(this);
+    }
+
+
+    @Override
+    public void connectionStarted(Client client) {
         this.client = client;
-        append("-- Connected to " + client.getAddress() + "\n");
+        SwingUtilities.invokeLater(() -> setVisible(true));
+        clientMessage("Connected to " + client.getAddress() + "\n");
     }
 
     @Override
-    public synchronized void connectionClosed() {
-        append("-- Connection closed.\n");
+    public void connectionClosed() {
+        clientMessage("Connection closed.\n");
     }
 }

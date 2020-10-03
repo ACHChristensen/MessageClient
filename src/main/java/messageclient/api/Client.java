@@ -2,8 +2,6 @@ package messageclient.api;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
@@ -45,11 +43,12 @@ public class Client implements AutoCloseable, Runnable {
     }
 
     private String readMessage() throws IOException{
-        // ByteBuffer buffer = ByteBuffer.allocate(4096);
-        // int x = socket.read(buffer);
-        // buffer.flip();
-        // String msg = StandardCharsets.UTF_8.decode(buffer).toString();
-        return reader.readLine() + "\n";
+        String line = reader.readLine();
+        if (line != null) {
+            return line + "\n";
+        } else {
+            throw new IOException("Connection Closed");
+        }
     }
 
     @Override
@@ -59,14 +58,21 @@ public class Client implements AutoCloseable, Runnable {
                 String message = readMessage();
                 observers.forEach(ob -> ob.receivedMessage(message));
             }
-        } catch (IOException e) { }
+        } catch (IOException e) {
+        } finally {
+            try {
+                close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void close() throws IOException {
+        observers.forEach(MessageObserver::connectionClosed);
         socket.close();
         thread.interrupt();
-        observers.forEach(MessageObserver::connectionClosed);
     }
 
     public synchronized void register(MessageObserver observer) {
@@ -88,7 +94,7 @@ public class Client implements AutoCloseable, Runnable {
     public Client reconnect() throws IOException {
         Client client = Client.open(this.id, this.address);
         synchronized (this) {
-        client.observers.addAll(this.observers);
+            client.observers.addAll(this.observers);
         }
         this.close();
         client.connect();

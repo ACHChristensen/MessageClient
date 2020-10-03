@@ -102,7 +102,7 @@ public class App extends JFrame implements ClientListObserver {
     }
 
     private JList<String> createClientList(ListModel<String> model) {
-        return new JList<String>(model);
+        return new JList<>(model);
     }
 
     private InetSocketAddress getCurrentAddress() {
@@ -115,9 +115,7 @@ public class App extends JFrame implements ClientListObserver {
             Client client = mclient.newClient(getCurrentAddress());
             ClientWindow window = ClientWindow.fromClient(client);
             client.connect();
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage());
-        } catch (NumberFormatException e) {
+        } catch (IOException | NumberFormatException e) {
             JOptionPane.showMessageDialog(this, e.getMessage());
         }
     }
@@ -127,7 +125,6 @@ public class App extends JFrame implements ClientListObserver {
                 ? Utils.parseInetAddress(args[0], args[1])
                 : new InetSocketAddress("165.232.73.234", 6666);
         var mclient = new MClient(address);
-
         SwingUtilities.invokeLater(() -> {
             App app = new App(mclient);
             mclient.register(app);
